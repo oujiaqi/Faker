@@ -1,46 +1,131 @@
 package com.tencent.faker;
 
 import android.app.Activity;
+import android.app.Service;
+import android.content.ComponentName;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.os.Bundle;
-import android.view.Menu;
-import android.view.MenuItem;
-
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.Message;
 import android.util.Log;
+import android.widget.Button;
+import android.widget.ProgressBar;
+import android.widget.SeekBar;
+import android.widget.TextView;
+import android.view.View;
+
+import com.tencent.utility.CpuUtils;
+
+import org.w3c.dom.Text;
 
 public class MainActivity extends Activity {
+    private Button start_faker, quit_faker;
+    private SeekBar target_seekbar;
+    private ProgressBar current_progressbar;
+    private TextView current_value, target_value;
+    MainServicer.MyBinder myBinder;
+
+    private Handler handler;
+    private int current_cpu_value;
+
+    private ServiceConnection conn = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            System.out.println("--Service Connected--");
+            // 获取Service的onBind方法所返回的MyBinder对象
+            myBinder = (MainServicer.MyBinder) service;
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            System.out.println("--Service Disconnected--");
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        String temp = "";
-        Log.i(temp, "CPUCore:" + CpuUtils.getNumberOfCPUCores());
-        Log.i(temp, "CPUModel:"+CpuUtils.getCPUModel());
-        Log.i(temp, "CPUMaxFreqKHz:"+CpuUtils.getCPUMaxFreqKHz());
-        Log.i(temp, "CPUCurHZ:"+CpuUtils.getCpuCurrentKHZ());
-        Log.i(temp, "CPUState:"+CpuUtils.getProcessCpuRate());
-
         setContentView(R.layout.activity_main);
+
+        // 连接各个组件
+        start_faker = (Button) findViewById(R.id.start_faker);
+        quit_faker = (Button) findViewById(R.id.quit_faker);
+        current_progressbar= (ProgressBar) findViewById(R.id.current_progressbar);
+        target_seekbar = (SeekBar) findViewById(R.id.target_seekbar);
+        current_value = (TextView) findViewById(R.id.current_value);
+        target_value = (TextView) findViewById(R.id.target_value);
+
+        handler = new Handler();
+        new Thread() {
+            public void run() {
+                while(true) {
+                    current_cpu_value = CpuUtils.getProcessCpuRate();
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            current_value.setText("" + (100 - current_cpu_value) + "%");
+                            current_progressbar.setProgress(100-current_cpu_value);
+                        }
+                    });
+                    try {
+                        sleep(10);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+            }
+        }.start();
+
+        // 设置理想CPU参数更新
+        target_seekbar.setOnSeekBarChangeListener(
+                new SeekBar.OnSeekBarChangeListener() {
+                    @Override
+                    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                        if (fromUser) {
+                            target_value.setText(""+target_seekbar.getProgress()+"%");
+                        }
+                    }
+
+                    @Override
+                    public void onStartTrackingTouch(SeekBar seekBar) {
+
+                    }
+
+                    @Override
+                    public void onStopTrackingTouch(SeekBar seekBar) {
+
+                    }
+                }
+        );
+
+        // 创建启动Service的Intent
+        final Intent intent = new Intent(this, MainServicer.class);
+
+
+        // 绑定 start_faker 事件
+        start_faker.setOnClickListener(
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        bindService(intent, conn, Service.BIND_AUTO_CREATE);
+                    }
+                }
+        );
+
+
+        // 绑定 quit_faker 事件
+        quit_faker.setOnClickListener(
+                new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+//                        unbindService(conn);
+                    }
+                }
+        );
+
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
 }
