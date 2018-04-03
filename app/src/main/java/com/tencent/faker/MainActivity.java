@@ -3,6 +3,7 @@ package com.tencent.faker;
 import android.app.Activity;
 import android.app.Service;
 import android.content.ComponentName;
+import android.content.ContentProvider;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
@@ -23,12 +24,12 @@ import org.w3c.dom.Text;
 public class MainActivity extends Activity {
     private Button start_faker, quit_faker;
     private SeekBar target_seekbar;
-    private ProgressBar current_progressbar;
-    private TextView current_value, target_value;
+    private ProgressBar current_progressbar, now_progressbar, exp_progressbar;
+    private TextView current_value, target_value, now_value, exp_value;
     MainServicer.MyBinder myBinder;
 
     private Handler handler;
-    private int current_cpu_value;
+    private int current_cpu_value = 0, now_cpu_value, exp_cpu_value, set_cpu_value = 0;
 
     private ServiceConnection conn = new ServiceConnection() {
         @Override
@@ -53,20 +54,31 @@ public class MainActivity extends Activity {
         start_faker = (Button) findViewById(R.id.start_faker);
         quit_faker = (Button) findViewById(R.id.quit_faker);
         current_progressbar= (ProgressBar) findViewById(R.id.current_progressbar);
+        now_progressbar = (ProgressBar) findViewById(R.id.now_progressbar);
+        exp_progressbar = (ProgressBar) findViewById(R.id.exp_progressbar);
         target_seekbar = (SeekBar) findViewById(R.id.target_seekbar);
         current_value = (TextView) findViewById(R.id.current_value);
+        now_value = (TextView) findViewById(R.id.now_value);
+        exp_value = (TextView) findViewById(R.id.exp_value);
         target_value = (TextView) findViewById(R.id.target_value);
 
+        // 设置更新
         handler = new Handler();
         new Thread() {
             public void run() {
                 while(true) {
                     current_cpu_value = CpuUtils.getProcessCpuRate();
+                    now_cpu_value = CpuUtils.getAppProcessCpuRate("now");
+                    exp_cpu_value = CpuUtils.getIdleCpuRateExcept("now");
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
                             current_value.setText("" + (100 - current_cpu_value) + "%");
                             current_progressbar.setProgress(100-current_cpu_value);
+                            now_value.setText("" + now_cpu_value + "%");
+                            now_progressbar.setProgress(now_cpu_value);
+                            exp_value.setText("" + exp_cpu_value + "%");
+                            exp_progressbar.setProgress(exp_cpu_value);
                         }
                     });
                     try {
@@ -86,6 +98,7 @@ public class MainActivity extends Activity {
                     public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                         if (fromUser) {
                             target_value.setText(""+target_seekbar.getProgress()+"%");
+                            set_cpu_value = target_seekbar.getProgress();
                         }
                     }
 
@@ -110,6 +123,7 @@ public class MainActivity extends Activity {
                 new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
+                        intent.putExtra("set_cpu_value", set_cpu_value);
                         bindService(intent, conn, Service.BIND_AUTO_CREATE);
                     }
                 }
@@ -121,7 +135,8 @@ public class MainActivity extends Activity {
                 new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-//                        unbindService(conn);
+                        myBinder.setQuit(false);
+                        unbindService(conn);
                     }
                 }
         );

@@ -14,6 +14,13 @@ import java.lang.Runtime;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
+
+import java.text.SimpleDateFormat;
+
+import java.util.Date;
+
+import java.util.Calendar;
+
 /**
  * Created by ouou on 2017/11/2.
  */
@@ -276,7 +283,7 @@ public class CpuUtils {
         return DEVICEINFO_UNKNOWN;
     }
 
-    public  static int getProcessCpuRate() {
+    public static int getProcessCpuRate() {
 
         StringBuilder tv = new StringBuilder();
         int rate = 0;
@@ -285,6 +292,7 @@ public class CpuUtils {
             String Result;
             Process p;
             p = Runtime.getRuntime().exec("top -n 1");
+            System.out.println("+++++++++++++++++++++++++getProcess");
 
             BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
             while ((Result = br.readLine()) != null) {
@@ -299,7 +307,6 @@ public class CpuUtils {
                     String[] SYSusage = CPUusr[1].split("System");
                     tv.append("CPU:" + CPUusage[1].trim() + " length:" + CPUusage[1].trim().length() + "\n");
                     tv.append("SYS:" + SYSusage[1].trim() + " length:" + SYSusage[1].trim().length() + "\n");
-
                     rate = Integer.parseInt(CPUusage[1].trim()) + Integer.parseInt(SYSusage[1].trim());
                     break;
                 }
@@ -310,6 +317,85 @@ public class CpuUtils {
             e.printStackTrace();
         }
         System.out.println(100-rate + "");
+        System.out.println("+++++++++++++++++++++++++");
         return rate;
     }
+
+    public static int getAppProcessCpuRate(String app_name) {
+        int rate = 0;
+
+        try {
+            String Result;
+            Process p;
+            p = Runtime.getRuntime().exec("top -n 1");
+            System.out.println("+++++++++++++++++++++++++getAppProcess");
+
+            BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            while ((Result = br.readLine()) != null) {
+                if (Result.trim().length() < 1) {
+                    continue;
+                } else if (Result.indexOf(app_name) == -1) {
+                    continue;
+                } else {
+                    System.out.println("---------");
+                    System.out.println(Result);
+                    String[] CPUusr = Result.split("%");
+                    String[] CPUusage = CPUusr[0].split(" ");
+                    rate = rate + Integer.parseInt(CPUusage[CPUusage.length-1].trim());
+                }
+            }
+
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        System.out.println(""+rate);
+        System.out.println("+++++++++++++++++++++++++");
+        return rate;
+    }
+
+    public static int getIdleCpuRateExcept(String app_name) {
+        System.out.println("+++++++++++++++++++++++++getIdleCpu");
+        int process_rate = -1, app_rate = 0;
+        try {
+            String Result;
+            Process p;
+
+            System.out.println(new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss:SSS").format(new Date()));
+
+            p = Runtime.getRuntime().exec("top -n 1");
+            System.out.println(new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss:SSS").format(new Date()));
+
+            BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            while ((Result = br.readLine()) != null) {
+                if (Result.trim().length() < 1) {
+                    continue;
+                } else if (process_rate == -1) {
+                    System.out.println("---------");
+                    System.out.println(Result);
+                    String[] CPUusr = Result.split("%");
+                    String[] CPUusage = CPUusr[0].split("User");
+                    String[] SYSusage = CPUusr[1].split("System");
+                    process_rate = Integer.parseInt(CPUusage[1].trim()) + Integer.parseInt(SYSusage[1].trim());
+                } else if (Result.indexOf(app_name) == -1) {
+                    continue;
+                } else {
+                    System.out.println("---------");
+                    System.out.println(Result);
+                    String[] CPUusr = Result.split("%");
+                    String[] CPUusage = CPUusr[0].split(" ");
+                    app_rate = app_rate + Integer.parseInt(CPUusage[CPUusage.length-1].trim());
+                }
+            }
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        System.out.println("process rate "+process_rate);
+        System.out.println("app rate "+app_rate);
+        System.out.println("idle rate "+(100-process_rate+app_rate));
+        System.out.println("+++++++++++++++++++++++++");
+        return (100-process_rate+app_rate);
+    }
+
 }
